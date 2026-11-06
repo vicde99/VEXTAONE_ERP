@@ -6,11 +6,11 @@ import { rateLimit } from 'express-rate-limit';
 import { authRouter } from './auth.js';
 import { adminRouter } from './admin.js';
 import { prisma } from './db.js';
+import { isTrustedOrigin } from './origin.js';
 import { requireAuth, requireCompanyAccess, requirePermission } from './security.js';
 
 export const app = express();
 app.disable('x-powered-by');
-app.set('trust proxy', 1);
 app.use(helmet());
 app.use(cors({ origin: process.env.APP_ORIGIN, credentials: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] }));
 app.use(express.json({ limit: '1mb' }));
@@ -19,7 +19,9 @@ app.use(cookieParser());
 app.use((req, res, next) => {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
   const origin = req.get('origin') ?? req.get('referer');
-  if (!process.env.APP_ORIGIN || !origin || !origin.startsWith(process.env.APP_ORIGIN)) return res.status(403).json({ error: 'Untrusted request origin' });
+  if (!isTrustedOrigin(origin, process.env.APP_ORIGIN)) {
+    return res.status(403).json({ error: 'Untrusted request origin' });
+  }
   next();
 });
 
