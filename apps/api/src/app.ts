@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { authRouter } from './auth.js';
+import { adminRouter } from './admin.js';
 import { prisma } from './db.js';
 import { requireAuth, requireCompanyAccess, requirePermission } from './security.js';
 
@@ -25,18 +26,32 @@ app.use((req, res, next) => {
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 app.use('/api/auth/login', rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false }));
 app.use('/api/auth', authRouter);
+app.use('/api/admin', adminRouter);
+
 app.get('/api/companies', requireAuth, async (req, res, next) => {
   try {
-    const companies = await prisma.company.findMany({ where: { id: { in: req.auth!.companyIds }, active: true }, select: { id: true, name: true, legalName: true, baseCurrency: true } });
+    const companies = await prisma.company.findMany({
+      where: { id: { in: req.auth!.companyIds }, active: true },
+      select: { id: true, name: true, legalName: true, baseCurrency: true },
+    });
     res.json(companies);
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 });
+
 app.get('/api/companies/:companyId/accounts', requireAuth, requireCompanyAccess, requirePermission('account.read'), async (req, res, next) => {
   try {
-    const accounts = await prisma.account.findMany({ where: { companyId: req.params.companyId, active: true }, orderBy: { code: 'asc' } });
+    const accounts = await prisma.account.findMany({
+      where: { companyId: req.params.companyId, active: true },
+      orderBy: { code: 'asc' },
+    });
     res.json(accounts);
-  } catch (error) { next(error); }
+  } catch (error) {
+    next(error);
+  }
 });
+
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(error);
