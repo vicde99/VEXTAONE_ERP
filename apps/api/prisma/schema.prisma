@@ -1,0 +1,190 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id          String         @id @default(uuid()) @db.Uuid
+  name        String
+  legalName   String?        @map("legal_name")
+  baseCurrency String        @default("PHP") @map("base_currency") @db.Char(3)
+  active      Boolean        @default(true)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  branches    Branch[]
+  departments Department[]
+  memberships UserCompany[]
+  fiscalYears FiscalYear[]
+  accounts    Account[]
+  auditEvents AuditEvent[]
+  @@map("companies")
+}
+
+model Branch {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  code      String
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  @@unique([companyId, code])
+  @@map("branches")
+}
+
+model Department {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  code      String
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  @@unique([companyId, code])
+  @@map("departments")
+}
+
+model User {
+  id            String        @id @default(uuid()) @db.Uuid
+  email         String        @unique
+  passwordHash  String        @map("password_hash")
+  displayName   String        @map("display_name")
+  active        Boolean       @default(true)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  memberships   UserCompany[]
+  sessions      UserSession[]
+  auditEvents   AuditEvent[]
+  @@map("users")
+}
+
+model UserSession {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  userAgent String?  @map("user_agent")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, expiresAt])
+  @@map("user_sessions")
+}
+
+model UserCompany {
+  userId    String   @map("user_id") @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  roles     UserCompanyRole[]
+  @@id([userId, companyId])
+  @@map("user_companies")
+}
+
+model Role {
+  id          String             @id @default(uuid()) @db.Uuid
+  code        String             @unique
+  name        String
+  description String?
+  systemRole  Boolean            @default(true) @map("system_role")
+  assignments UserCompanyRole[]
+  permissions RolePermission[]
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(uuid()) @db.Uuid
+  code        String           @unique
+  description String
+  roles       RolePermission[]
+  @@map("permissions")
+}
+
+model UserCompanyRole {
+  userId    String @map("user_id") @db.Uuid
+  companyId String @map("company_id") @db.Uuid
+  roleId    String @map("role_id") @db.Uuid
+  membership UserCompany @relation(fields: [userId, companyId], references: [userId, companyId], onDelete: Cascade)
+  role       Role        @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  @@id([userId, companyId, roleId])
+  @@map("user_company_roles")
+}
+
+model RolePermission {
+  roleId       String     @map("role_id") @db.Uuid
+  permissionId String     @map("permission_id") @db.Uuid
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model FiscalYear {
+  id        String             @id @default(uuid()) @db.Uuid
+  companyId String             @map("company_id") @db.Uuid
+  name      String
+  startsOn  DateTime           @map("starts_on") @db.Date
+  endsOn    DateTime           @map("ends_on") @db.Date
+  status    String             @default("OPEN")
+  company   Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  periods   AccountingPeriod[]
+  @@unique([companyId, name])
+  @@map("fiscal_years")
+}
+
+model AccountingPeriod {
+  id          String    @id @default(uuid()) @db.Uuid
+  fiscalYearId String   @map("fiscal_year_id") @db.Uuid
+  name        String
+  startsOn    DateTime  @map("starts_on") @db.Date
+  endsOn      DateTime  @map("ends_on") @db.Date
+  status      String    @default("OPEN")
+  fiscalYear  FiscalYear @relation(fields: [fiscalYearId], references: [id], onDelete: Restrict)
+  @@unique([fiscalYearId, name])
+  @@map("accounting_periods")
+}
+
+model Account {
+  id                String    @id @default(uuid()) @db.Uuid
+  companyId         String    @map("company_id") @db.Uuid
+  parentId          String?   @map("parent_id") @db.Uuid
+  code              String
+  name              String
+  accountType       String    @map("account_type")
+  normalBalance     String    @map("normal_balance")
+  description       String?
+  statementMapping  String?   @map("statement_mapping")
+  cashFlowClass     String?   @map("cash_flow_class")
+  controlAccount    Boolean   @default(false) @map("control_account")
+  postingRestricted Boolean   @default(false) @map("posting_restricted")
+  active            Boolean   @default(true)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  company           Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  parent            Account?  @relation("AccountHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children          Account[] @relation("AccountHierarchy")
+  @@unique([companyId, code])
+  @@index([companyId, accountType, active])
+  @@map("accounts")
+}
+
+model AuditEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String?  @map("company_id") @db.Uuid
+  userId      String?  @map("user_id") @db.Uuid
+  action      String
+  entityType  String?  @map("entity_type")
+  entityId    String?  @map("entity_id")
+  metadata    Json     @default("{}")
+  ipAddress   String?  @map("ip_address")
+  createdAt   DateTime @default(now()) @map("created_at")
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([companyId, createdAt])
+  @@index([userId, createdAt])
+  @@map("audit_events")
+}

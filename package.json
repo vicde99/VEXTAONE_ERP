@@ -1,0 +1,16 @@
+{
+  "name": "vextaone-erp",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Philippine accounting and business consultancy ERP — phased implementation",
+  "workspaces": ["apps/api"],
+  "scripts": {
+    "dev": "npm run dev -w @vextaone/api",
+    "build": "npm run build -w @vextaone/api",
+    "db:generate": "npm run db:generate -w @vextaone/api",
+    "db:migrate": "npm run db:migrate -w @vextaone/api",
+    "db:seed": "npm run db:seed -w @vextaone/api",
+    "test": "npm run test -w @vextaone/api"
+  },
+  "engines": { "node": ">=20" }
+}
