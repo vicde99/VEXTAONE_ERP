@@ -8,20 +8,20 @@ datasource db {
 }
 
 model Company {
-  id          String         @id @default(uuid()) @db.Uuid
-  name        String
-  legalName   String?        @map("legal_name")
-  baseCurrency String        @default("PHP") @map("base_currency") @db.Char(3)
-  active      Boolean        @default(true)
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
-  branches    Branch[]
-  departments Department[]
-  memberships UserCompany[]
-  fiscalYears FiscalYear[]
-  accounts    Account[]
+  id             String         @id @default(uuid()) @db.Uuid
+  name           String
+  legalName      String?        @map("legal_name")
+  baseCurrency   String         @default("PHP") @map("base_currency") @db.Char(3)
+  active         Boolean        @default(true)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  branches       Branch[]
+  departments    Department[]
+  memberships    UserCompany[]
+  fiscalYears    FiscalYear[]
+  accounts       Account[]
   journalEntries JournalEntry[]
-  auditEvents AuditEvent[]
+  auditEvents    AuditEvent[]
   @@map("companies")
 }
 
@@ -50,16 +50,18 @@ model Department {
 }
 
 model User {
-  id            String        @id @default(uuid()) @db.Uuid
-  email         String        @unique
-  passwordHash  String        @map("password_hash")
-  displayName   String        @map("display_name")
-  active        Boolean       @default(true)
-  createdAt     DateTime      @default(now()) @map("created_at")
-  updatedAt     DateTime      @updatedAt @map("updated_at")
-  memberships   UserCompany[]
-  sessions      UserSession[]
-  auditEvents   AuditEvent[]
+  id                   String         @id @default(uuid()) @db.Uuid
+  email                String         @unique
+  passwordHash         String         @map("password_hash")
+  displayName          String         @map("display_name")
+  active               Boolean        @default(true)
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
+  memberships          UserCompany[]
+  sessions             UserSession[]
+  auditEvents          AuditEvent[]
+  journalEntriesCreated JournalEntry[] @relation("JournalCreatedBy")
+  journalEntriesPosted  JournalEntry[] @relation("JournalPostedBy")
   @@map("users")
 }
 
@@ -106,9 +108,9 @@ model Permission {
 }
 
 model UserCompanyRole {
-  userId    String @map("user_id") @db.Uuid
-  companyId String @map("company_id") @db.Uuid
-  roleId    String @map("role_id") @db.Uuid
+  userId     String      @map("user_id") @db.Uuid
+  companyId  String      @map("company_id") @db.Uuid
+  roleId     String      @map("role_id") @db.Uuid
   membership UserCompany @relation(fields: [userId, companyId], references: [userId, companyId], onDelete: Cascade)
   role       Role        @relation(fields: [roleId], references: [id], onDelete: Restrict)
   @@id([userId, companyId, roleId])
@@ -138,36 +140,37 @@ model FiscalYear {
 }
 
 model AccountingPeriod {
-  id          String    @id @default(uuid()) @db.Uuid
-  fiscalYearId String   @map("fiscal_year_id") @db.Uuid
+  id          String         @id @default(uuid()) @db.Uuid
+  fiscalYearId String        @map("fiscal_year_id") @db.Uuid
   name        String
-  startsOn    DateTime  @map("starts_on") @db.Date
-  endsOn      DateTime  @map("ends_on") @db.Date
-  status      String    @default("OPEN")
-  fiscalYear  FiscalYear @relation(fields: [fiscalYearId], references: [id], onDelete: Restrict)
+  startsOn    DateTime       @map("starts_on") @db.Date
+  endsOn      DateTime       @map("ends_on") @db.Date
+  status      String         @default("OPEN")
+  fiscalYear  FiscalYear     @relation(fields: [fiscalYearId], references: [id], onDelete: Restrict)
+  journals    JournalEntry[]
   @@unique([fiscalYearId, name])
   @@map("accounting_periods")
 }
 
 model Account {
-  id                String    @id @default(uuid()) @db.Uuid
-  companyId         String    @map("company_id") @db.Uuid
-  parentId          String?   @map("parent_id") @db.Uuid
+  id                String        @id @default(uuid()) @db.Uuid
+  companyId         String        @map("company_id") @db.Uuid
+  parentId          String?       @map("parent_id") @db.Uuid
   code              String
   name              String
-  accountType       String    @map("account_type")
-  normalBalance     String    @map("normal_balance")
+  accountType       String        @map("account_type")
+  normalBalance     String        @map("normal_balance")
   description       String?
-  statementMapping  String?   @map("statement_mapping")
-  cashFlowClass     String?   @map("cash_flow_class")
-  controlAccount    Boolean   @default(false) @map("control_account")
-  postingRestricted Boolean   @default(false) @map("posting_restricted")
-  active            Boolean   @default(true)
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
-  company           Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  parent            Account?  @relation("AccountHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
-  children          Account[] @relation("AccountHierarchy")
+  statementMapping  String?       @map("statement_mapping")
+  cashFlowClass     String?       @map("cash_flow_class")
+  controlAccount    Boolean       @default(false) @map("control_account")
+  postingRestricted Boolean       @default(false) @map("posting_restricted")
+  active            Boolean       @default(true)
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+  company           Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  parent            Account?      @relation("AccountHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children          Account[]     @relation("AccountHierarchy")
   journalLines      JournalLine[]
   @@unique([companyId, code])
   @@index([companyId, accountType, active])
@@ -175,33 +178,46 @@ model Account {
 }
 
 model JournalEntry {
-  id              String      @id @default(uuid()) @db.Uuid
-  companyId       String      @map("company_id") @db.Uuid
-  journalNo       String      @map("journal_no")
-  entryType       String      @map("entry_type")
-  description     String
-  status          String      @default("DRAFT")
-  sourceModule    String?     @map("source_module")
-  sourceDocumentId String?    @map("source_document_id")
-  createdByUserId String      @map("created_by_user_id") @db.Uuid
-  createdAt       DateTime    @default(now()) @map("created_at")
-  updatedAt       DateTime    @updatedAt @map("updated_at")
-  company         Company     @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  lines           JournalLine[]
+  id               String             @id @default(uuid()) @db.Uuid
+  companyId        String             @map("company_id") @db.Uuid
+  periodId         String?            @map("period_id") @db.Uuid
+  journalNo        String             @map("journal_no")
+  journalDate      DateTime           @default(now()) @map("journal_date") @db.Date
+  entryType        String             @map("entry_type")
+  description      String
+  status           String             @default("DRAFT")
+  sourceModule     String?            @map("source_module")
+  sourceDocumentId String?            @map("source_document_id")
+  reversalOfId     String?            @map("reversal_of_id") @db.Uuid
+  createdByUserId  String             @map("created_by_user_id") @db.Uuid
+  postedByUserId   String?            @map("posted_by_user_id") @db.Uuid
+  postedAt         DateTime?          @map("posted_at")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+  company          Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  period           AccountingPeriod?  @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  createdBy        User               @relation("JournalCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  postedBy         User?              @relation("JournalPostedBy", fields: [postedByUserId], references: [id], onDelete: Restrict)
+  reversalOf       JournalEntry?      @relation("JournalReversals", fields: [reversalOfId], references: [id], onDelete: Restrict)
+  reversals        JournalEntry[]     @relation("JournalReversals")
+  lines            JournalLine[]
   @@unique([companyId, journalNo])
+  @@unique([companyId, sourceModule, sourceDocumentId])
+  @@index([companyId, journalDate, status])
   @@map("journal_entries")
 }
 
 model JournalLine {
-  id            String       @id @default(uuid()) @db.Uuid
-  journalEntryId String      @map("journal_entry_id") @db.Uuid
-  accountId     String       @map("account_id") @db.Uuid
-  description   String?
-  debitAmount   Decimal      @map("debit_amount") @db.Decimal(18, 2)
-  creditAmount  Decimal      @map("credit_amount") @db.Decimal(18, 2)
-  createdAt     DateTime     @default(now()) @map("created_at")
-  journalEntry  JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
-  account       Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  id             String       @id @default(uuid()) @db.Uuid
+  journalEntryId String       @map("journal_entry_id") @db.Uuid
+  accountId      String       @map("account_id") @db.Uuid
+  description    String?
+  debitAmount    Decimal      @default(0) @map("debit_amount") @db.Decimal(18, 2)
+  creditAmount   Decimal      @default(0) @map("credit_amount") @db.Decimal(18, 2)
+  createdAt      DateTime     @default(now()) @map("created_at")
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account        Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  @@index([accountId])
   @@map("journal_lines")
 }
 
