@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { authRouter } from './auth.js';
 import { adminRouter } from './admin.js';
+import { accountingRouter } from './journal.js';
 import { prisma } from './db.js';
 import { isTrustedOrigin } from './origin.js';
 import { requireAuth, requireCompanyAccess, requirePermission } from './security.js';
@@ -32,6 +33,7 @@ app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 app.use('/api/auth/login', rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: true, legacyHeaders: false }));
 app.use('/api/auth', authRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api', accountingRouter);
 
 app.get('/api/companies', requireAuth, async (req, res, next) => {
   try {
