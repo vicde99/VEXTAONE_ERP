@@ -20,6 +20,7 @@ model Company {
   memberships UserCompany[]
   fiscalYears FiscalYear[]
   accounts    Account[]
+  journalEntries JournalEntry[]
   auditEvents AuditEvent[]
   @@map("companies")
 }
@@ -167,9 +168,41 @@ model Account {
   company           Company   @relation(fields: [companyId], references: [id], onDelete: Restrict)
   parent            Account?  @relation("AccountHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
   children          Account[] @relation("AccountHierarchy")
+  journalLines      JournalLine[]
   @@unique([companyId, code])
   @@index([companyId, accountType, active])
   @@map("accounts")
+}
+
+model JournalEntry {
+  id              String      @id @default(uuid()) @db.Uuid
+  companyId       String      @map("company_id") @db.Uuid
+  journalNo       String      @map("journal_no")
+  entryType       String      @map("entry_type")
+  description     String
+  status          String      @default("DRAFT")
+  sourceModule    String?     @map("source_module")
+  sourceDocumentId String?    @map("source_document_id")
+  createdByUserId String      @map("created_by_user_id") @db.Uuid
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+  company         Company     @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  lines           JournalLine[]
+  @@unique([companyId, journalNo])
+  @@map("journal_entries")
+}
+
+model JournalLine {
+  id            String       @id @default(uuid()) @db.Uuid
+  journalEntryId String      @map("journal_entry_id") @db.Uuid
+  accountId     String       @map("account_id") @db.Uuid
+  description   String?
+  debitAmount   Decimal      @map("debit_amount") @db.Decimal(18, 2)
+  creditAmount  Decimal      @map("credit_amount") @db.Decimal(18, 2)
+  createdAt     DateTime     @default(now()) @map("created_at")
+  journalEntry  JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account       Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  @@map("journal_lines")
 }
 
 model AuditEvent {
